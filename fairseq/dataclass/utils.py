@@ -286,7 +286,7 @@ def _override_attr(
         else:
             overrides.append("{}.{}={}".format(sub_node, k, val))
 
-    return overrides
+    return ["+" + o if ('optimizer.adam' not in o) and ('task.tokens_per_sample=512' not in o) and ('lr_scheduler.warmup' not in o) and ('optimizer.tpu=False' not in o) and ('optimizer.fp16_adam_stats=False' not in o) and ('optimizer.weight_decay=0.0' not in o) and ('optimizer.use_old_adam' not in o) else o for o in overrides]
 
 
 def migrate_registry(
