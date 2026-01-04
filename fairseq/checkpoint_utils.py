@@ -104,20 +104,7 @@ def save_checkpoint(cfg: CheckpointConfig, trainer, epoch_itr, val_loss):
         "checkpoint_last{}.pt".format(suffix)
     ] = not cfg.no_last_checkpoints
 
-    extra_state = {
-        "train_iterator": epoch_itr.state_dict(),
-        "val_loss": val_loss,
-    }
-
-    # Going forward, different tasks could expose an API like this to dump all
-    # the checkpoint worthy attributes in a dictionary which then will be
-    # merged with the parent dictionary to create the "extra_state". This
-    # allows for an extensible yet simple design to checkpoint task level
-    # attributes
-    if hasattr(trainer.task, "get_checkpoint_dict"):
-        extra_state = {**extra_state, **trainer.task.get_checkpoint_dict()}
-        logger.info(f"State of {trainer.task.__class__.__name__} is ready to be persisted with the checkpoint")
-
+    extra_state = {"train_iterator": epoch_itr.state_dict(), "val_loss": val_loss}
     if hasattr(save_checkpoint, "best"):
         extra_state.update({"best": save_checkpoint.best})
 
@@ -288,11 +275,6 @@ def load_checkpoint(cfg: CheckpointConfig, trainer, **passthrough_args):
             epoch=itr_state["epoch"], load_dataset=True, **passthrough_args
         )
         epoch_itr.load_state_dict(itr_state)
-
-        # Preload the checkpoint for the task
-        task_cp_dict = extra_state.get(trainer.task.__class__.__name__, {})
-        if task_cp_dict and hasattr(trainer.task, "set_checkpoint_dict"):
-            trainer.task.set_checkpoint_dict(task_cp_dict)
     else:
         epoch_itr = trainer.get_train_iterator(
             epoch=1, load_dataset=True, **passthrough_args
@@ -911,7 +893,6 @@ def load_ema_from_checkpoint(fpath):
             map_location=(
                 lambda s, _: torch.serialization.default_restore_location(s, "cpu")
             ),
-            weights_only=False,
         )
 
         # EMA model is stored in a separate "extra state"
